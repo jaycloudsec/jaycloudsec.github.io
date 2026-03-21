@@ -122,6 +122,7 @@ p {
     color: #b0b0b0;
 }
 
+
 .subtitle {
     font-size: 1.2rem;
     color: #888;
@@ -257,7 +258,41 @@ p {
     color: #fff;
     border-bottom-color: rgba(224, 224, 224, 0.5);
 }
+/* CONTACT WRAPPER */
+.contact-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 2rem;
+}
 
+.contact-links {
+    flex: 1;
+}
+
+/* FLAG COUNTER */
+.flag-counter {
+    margin-top: 0;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.flag-counter img {
+    max-width: 100px;
+    height: auto;
+}
+
+/* RESPONSIVE - MOBILE */
+@media (max-width: 768px) {
+    .contact-wrapper {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .flag-counter {
+        text-align: center;
+    }
+}
 footer {
     background: #2a2a2a;
     border-top: 1px solid rgba(224, 224, 224, 0.1);
