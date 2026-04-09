@@ -1,0 +1,117 @@
+
+
+ * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 20px;
+            border-bottom: 1px solid #333;
+        }
+
+        .site-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        nav a {
+            color: #999;
+            text-decoration: none;
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: color 0.3s;
+        }
+
+        nav a:hover {
+            color: #fff;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+
+        .gallery-select {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .gallery-option {
+            position: relative;
+            aspect-ratio: 1;
+            overflow: hidden;
+            border: 1px solid #333;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        .gallery-option:hover {
+            border-color: #fff;
+        }
+
+        .gallery-option img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity 0.3s;
+        }
+
+        .gallery-option:hover img {
+            opacity: 0.7;
+        }
+
+        .gallery-label {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-align: center;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border: 1px solid #333;
+        }
+
+        footer {
+            padding: 20px;
+            border-top: 1px solid #333;
+            text-align: center;
+            font-size: 9px;
+            color: #666;
+            letter-spacing: 1px;
+        }
+
+        @media (max-width: 768px) {
+            .gallery-select {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+        }
+@media (max-width: 768px) {
+    .gallery-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1px;
+    }
+}

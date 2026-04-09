@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DSLR Photography</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #ffffff;
+            font-size: 11px;
+            user-select: none;
+        }
+
+        /* Prevent right-click */
+        img {
+            pointer-events: none;
+            -webkit-user-drag: none;
+        }
+
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #0a0a0a;
+            border-bottom: 1px solid #333;
+            padding: 12px 20px;
+            z-index: 100;
+        }
+
+        .site-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+
+        nav {
+            display: flex;
+            gap: 20px;
+        }
+
+        nav a {
+            color: #999;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 10px;
+            transition: color 0.2s;
+        }
+
+        nav a:hover {
+            color: #fff;
+        }
+
+        main {
+            margin-top: 80px;
+            padding: 20px;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 2px;
+        }
+
+        .gallery-item {
+            position: relative;
+            aspect-ratio: 1;
+            overflow: hidden;
+            background: #1a1a1a;
+            cursor: pointer;
+            border: 1px solid #333;
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity 0.3s;
+        }
+
+        .gallery-item:hover img {
+            opacity: 0.8;
+        }
+
+        .image-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.8);
+            padding: 6px 8px;
+            font-size: 9px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .gallery-item:hover .image-info {
+            opacity: 1;
+        }
+
+        /* Lightbox */
+        #lightbox {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        #lightbox.active {
+            display: flex;
+        }
+
+        .lightbox-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+        }
+
+        .lightbox-image {
+            max-width: 100%;
+            max-height: 90vh;
+            object-fit: contain;
+            border: 1px solid #333;
+        }
+
+        .lightbox-info {
+            margin-top: 16px;
+            text-align: center;
+        }
+
+        .lightbox-counter {
+            font-size: 10px;
+            color: #999;
+            letter-spacing: 2px;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 10px;
+        }
+
+        .lightbox-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 32px;
+            cursor: pointer;
+            padding: 20px;
+            opacity: 0.5;
+            transition: opacity 0.3s;
+        }
+
+        .lightbox-nav:hover {
+            opacity: 1;
+        }
+
+        .lightbox-prev { left: 20px; }
+        .lightbox-next { right: 20px; }
+
+        footer {
+            margin-top: 60px;
+            padding: 20px;
+            border-top: 1px solid #333;
+            text-align: center;
+            font-size: 9px;
+            color: #666;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .gallery-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="site-title">DSLR Photography</div>
+        <nav>
+            <a href="index.html">← Main Gallery</a>
+            <a href="/">Professional Work</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="gallery-grid" id="gallery"></div>
+    </main>
+
+    <div id="lightbox">
+        <button class="lightbox-close" id="lightbox-close">×</button>
+        <button class="lightbox-nav lightbox-prev" id="lightbox-prev">‹</button>
+        <button class="lightbox-nav lightbox-next" id="lightbox-next">›</button>
+        <div class="lightbox-content">
+            <img src="" alt="" class="lightbox-image" id="lightbox-image">
+            <div class="lightbox-info">
+                <div class="lightbox-counter" id="lightbox-counter"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        © 2025 - All Rights Reserved
+    </footer>
+
+    <script>
+        // PASTE MULTI-CDN CODE HERE (from Step 11)
+// Multi-CDN Configuration
+const CDN_CONFIG = {
+    sources: [
+        'https://jaycloudsec.netlify.app/gallery',           // Primary: Netlify
+        'https://res.cloudinary.com/YOUR_CLOUD_NAME/image/upload'  // Backup: Cloudinary
+    ]
+};
+
+// Automatic Image Loader with Fallback
+class ImageLoader {
+    constructor(sources) {
+        this.sources = sources;
+    }
+    
+    load(img, path) {
+        const urls = this.sources.map(base => `${base}/${path}`);
+        let currentIndex = 0;
+        
+        const tryNext = () => {
+            if (currentIndex >= urls.length) {
+                // All sources failed - show placeholder
+                img.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"%3E%3Crect fill="%231a1a1a" width="400" height="400"/%3E%3Ctext x="200" y="200" fill="%23666" text-anchor="middle" font-family="monospace" font-size="11"%3EImage unavailable%3C/text%3E%3C/svg%3E';
+                return;
+            }
+            
+            img.onerror = () => {
+                currentIndex++;
+                tryNext();
+            };
+            
+            img.src = urls[currentIndex];
+        };
+        
+        tryNext();
+    }
+}
+
+// Initialize loader
+const imageLoader = new ImageLoader(CDN_CONFIG.sources);
+        // Photo database
+        const photos = [
+            { file: 'photos/dslr/full/2024/001.webp', thumb: 'photos/dslr/thumbnails/2024/001.webp', date: '2024' },
+            { file: 'photos/dslr/full/2024/002.webp', thumb: 'photos/dslr/thumbnails/2024/002.webp', date: '2024' },
+            // Add more photos...
+        ];
+
+        // Prevent right-click
+        document.addEventListener('contextmenu', e => e.preventDefault());
+
+        // Load gallery
+        function loadGallery() {
+            const gallery = document.getElementById('gallery');
+            
+            photos.forEach((photo, index) => {
+                const item = document.createElement('div');
+                item.className = 'gallery-item';
+                
+                const img = document.createElement('img');
+                img.alt = 'DSLR photography';
+                img.loading = 'lazy';
+                
+                // Use fallback loader
+                imageLoader.load(img, photo.thumb);
+                
+                const info = document.createElement('div');
+                info.className = 'image-info';
+                info.textContent = photo.date;
+                
+                item.appendChild(img);
+                item.appendChild(info);
+                gallery.appendChild(item);
+                
+                item.addEventListener('click', () => openLightbox(index));
+            });
+        }
+
+        // Lightbox
+        let currentIndex = 0;
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImage = document.getElementById('lightbox-image');
+        const lightboxCounter = document.getElementById('lightbox-counter');
+
+        function openLightbox(index) {
+            currentIndex = index;
+            updateLightbox();
+            lightbox.classList.add('active');
+        }
+
+        function closeLightbox() {
+            lightbox.classList.remove('active');
+        }
+
+        function updateLightbox() {
+            const photo = photos[currentIndex];
+            imageLoader.load(lightboxImage, photo.file);
+            lightboxCounter.textContent = `${currentIndex + 1}/${photos.length}`;
+        }
+
+        function nextPhoto() {
+            currentIndex = (currentIndex + 1) % photos.length;
+            updateLightbox();
+        }
+
+        function prevPhoto() {
+            currentIndex = (currentIndex - 1 + photos.length) % photos.length;
+            updateLightbox();
+        }
+
+        document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
+        document.getElementById('lightbox-next').addEventListener('click', nextPhoto);
+        document.getElementById('lightbox-prev').addEventListener('click', prevPhoto);
+
+        lightbox.addEventListener('click', e => {
+            if (e.target === lightbox) closeLightbox();
+        });
+
+        document.addEventListener('keydown', e => {
+            if (!lightbox.classList.contains('active')) return;
+            if (e.key === 'Escape') closeLightbox();
+            if (e.key === 'ArrowRight') nextPhoto();
+            if (e.key === 'ArrowLeft') prevPhoto();
+        });
+
+        window.addEventListener('load', loadGallery);
+    </script>
+</body>
+</html>
