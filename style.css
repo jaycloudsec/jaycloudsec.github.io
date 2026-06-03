@@ -119,7 +119,7 @@ p {
     font-size: 1rem;
     line-height: 1.7;
     margin-bottom: 1.5rem;
-    color: #b0b0b0;
+    color: #b8b8b8 ;
 }
 
 .subtitle {
@@ -136,6 +136,9 @@ p {
     justify-content: center;
     gap: 3rem;
     flex-wrap: wrap;
+    max-width: 860px;
+    width: 100%;
+    margin: 0 auto;
 }
 
 .profile-image {
@@ -148,10 +151,11 @@ p {
 }
 
 .home-text {
+    flex: 1;
+    min-width: 280px;
     max-width: 600px;
     text-align: left;
 }
-
 /* Grid sections */
 .grid {
     display: grid;
@@ -196,8 +200,17 @@ p {
 
 .card p {
     font-size: 0.95rem;
-    color: #b0b0b0;
+    color: #b8b8b8 ;
     line-height: 1.6;
+}
+
+.card ul, .card ul li {
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
 /* Photography gallery */
@@ -236,7 +249,7 @@ p {
 .gallery-caption {
     text-align: center;
     font-size: 0.9rem;
-    color: #b0b0b0;
+    color: #b8b8b8 ;
     padding: 0.75rem;
     background: #0a0a0a;
     border-top: 1px solid rgba(224, 224, 224, 0.1);
