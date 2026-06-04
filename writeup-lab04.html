@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jay — Write-ups | Lab 04</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo"></div>
+            <ul>
+                <li><a href="index.html" class="nav-link">Home</a></li>
+                <li><a href="index.html#experience" class="nav-link">Experience</a></li>
+                <li><a href="index.html#certifications" class="nav-link">Certifications</a></li>
+                <li><a href="index.html#projects" class="nav-link">Projects</a></li>
+                <li><a href="writeup.html" class="nav-link">Write-ups</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section id="writeup-lab04">
+
+            <h2>Lab 04 — Automated SOC Incident Response</h2>
+            <p class="meta">SOAR · Azure Logic Apps · Microsoft Sentinel · Incident Automation · Azure RBAC</p>
+
+            <h3>Overview</h3>
+            <p>This write-up documents the implementation of an automated incident response workflow using Microsoft Sentinel and Azure Logic Apps. The playbook automatically detects failed login incidents on the honeypot environment and delivers real-time email notifications to the security team — eliminating manual triage for known alert patterns.</p>
+            <p>Validation was conducted in two phases: a controlled internal test and an overnight production run against real-world attack traffic. The automation achieved a 100% success rate across 21 real incidents, with an average response time under 2 minutes per alert.</p>
+
+            <h3>Environment</h3>
+            <p>The following architecture was used for this lab:</p>
+            <pre><code>Microsoft Sentinel Alert Triggered
+↓
+Automation Rule
+↓
+Logic App Playbook
+↓
+├──▶ Extract Incident Data
+│
+└──▶ Send Email Notification</code></pre>
+
+            <p>Technologies used:</p>
+            <ul>
+                <li>Microsoft Azure</li>
+                <li>Microsoft Sentinel</li>
+                <li>Azure Logic Apps</li>
+                <li>Microsoft Entra ID (Managed Identity)</li>
+                <li>Azure Role-Based Access Control (RBAC)</li>
+                <li>Email (Outlook.com connector)</li>
+            </ul>
+
+            <h3>Playbook Architecture</h3>
+            <p>The playbook operates as a Sentinel-integrated Logic App that fires on incident creation. The automation rule acts as the gatekeeper — evaluating whether the triggering analytics rule matches the defined conditions before invoking the playbook. Once triggered, the Logic App extracts incident metadata dynamically and composes a structured email notification.</p>
+            <p>This design separates detection logic (Sentinel analytics rules) from response logic (Logic App), keeping each layer independently maintainable and extensible.</p>
+
+            <h3>Logic App Configuration</h3>
+            <p>The Logic App was configured with the following settings:</p>
+            <ul>
+                <li>Logic App Name: <code>Enrich-Failed-Login-Alert</code></li>
+                <li>Region: Australia East</li>
+                <li>Plan Type: Consumption (pay-per-execution)</li>
+                <li>Workflow Type: Stateful</li>
+            </ul>
+
+            <p>The Consumption plan was selected intentionally — at typical SOC alert volumes the per-execution cost is negligible (approximately $0.0001 per run), and the stateful workflow type ensures full execution history is retained for audit and troubleshooting.</p>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab04/logic-app-creation.png" alt="Logic App Creation">
+                <p class="screenshot-caption">Logic App created in Australia East with Consumption plan and Stateful workflow type</p>
+            </div>
+
+            <h3>Trigger Configuration</h3>
+            <p>The playbook trigger is the native Sentinel incident connector:</p>
+            <p><strong>Trigger</strong>: "When Azure Sentinel incident creation rule was triggered"</p>
+            <p>This trigger provides structured access to the following incident fields at runtime:</p>
+            <ul>
+                <li>Incident number</li>
+                <li>Incident title</li>
+                <li>Severity</li>
+                <li>Description</li>
+                <li>Incident URL (direct link to Sentinel)</li>
+            </ul>
+            <p>All fields are surfaced as dynamic content tokens, allowing downstream actions to reference them without manual parsing or additional API calls.</p>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab04/playbook-trigger-configuration.png" alt="Playbook Trigger Configuration">
+                <p class="screenshot-caption">Sentinel incident creation trigger configured as the Logic App entry point</p>
+            </div>
+
+            <h3>Email Notification Action</h3>
+            <p>The notification action uses the Outlook.com connector to deliver a structured alert email to the security team.</p>
+            <table class="writeup-table">
+                <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Connector</td>
+                        <td>Outlook.com</td>
+                    </tr>
+                    <tr>
+                        <td>Subject</td>
+                        <td>🚨 ALERT: Failed Login Detected on Honeypot</td>
+                    </tr>
+                    <tr>
+                        <td>Body</td>
+                        <td>Incident ID, Title, Severity, Description, Sentinel URL</td>
+                    </tr>
+                    <tr>
+                        <td>Content population</td>
+                        <td>Dynamic — auto-populated from trigger tokens</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>Dynamic content tokens are bound directly to the email body fields, meaning the notification is fully populated from live incident data with no hardcoded values. Every email contains actionable context that allows the analyst to assess and triage without opening Sentinel first.</p>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab04/email-notification-action.png" alt="Email Notification Action">
+                <p class="screenshot-caption">Email notification action configured with dynamic incident fields from the Sentinel trigger</p>
+            </div>
+
+            <h3>Managed Identity &amp; RBAC</h3>
+            <p>The Logic App authenticates to Microsoft Sentinel using a system-assigned managed identity — the recommended approach for service-to-service authentication in Azure.</p>
+            <p>Managed identity configuration:</p>
+            <ul>
+                <li>Identity type: System-assigned</li>
+                <li>Registered with: Microsoft Entra ID</li>
+                <li>Credential storage: None — no secrets, keys, or passwords stored in code or configuration</li>
+            </ul>
+            <p>RBAC role assignment:</p>
+            <ul>
+                <li>Role: Microsoft Sentinel Responder</li>
+                <li>Scope: Resource group (<code>soc-lab-rg</code>)</li>
+                <li>Permissions granted: Read incidents, update incident properties, add comments</li>
+            </ul>
+            <p>Scoping the role to the resource group rather than the subscription follows the principle of least privilege — the Logic App can only interact with resources within the defined boundary.</p>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab04/logic-app-permissions.png" alt="Logic App Permissions">
+                <p class="screenshot-caption">Microsoft Sentinel Responder role assigned to the Logic App managed identity at resource group scope</p>
+            </div>
+
+            <h3>Automation Rule Configuration</h3>
+            <p>The automation rule controls when the playbook executes within Sentinel.</p>
+            <table class="writeup-table">
+                <thead>
+                    <tr>
+                        <th>Setting</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Rule name</td>
+                        <td>Auto-Enrich-Failed-Login-Alerts</td>
+                    </tr>
+                    <tr>
+                        <td>Trigger</td>
+                        <td>When incident is created</td>
+                    </tr>
+                    <tr>
+                        <td>Condition property</td>
+                        <td>Analytic rule name</td>
+                    </tr>
+                    <tr>
+                        <td>Operator</td>
+                        <td>Contains</td>
+                    </tr>
+                    <tr>
+                        <td>Matched rules</td>
+                        <td>[HONEYPOT] Brute Force Login Detection, [HONEYPOT] Multiple Failed Login Detection</td>
+                    </tr>
+                    <tr>
+                        <td>Action</td>
+                        <td>Run playbook → Enrich-Failed-Login-Alert</td>
+                    </tr>
+                    <tr>
+                        <td>Expiration</td>
+                        <td>Indefinite</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>Both detection rules were explicitly added to the condition. This proved critical during testing — see the Troubleshooting section for details.</p>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab04/automation-rule-configuration.png" alt="Automation Rule Configuration">
+                <p class="screenshot-caption">Automation rule configured to trigger the playbook on incidents from both honeypot detection rules</p>
+            </div>
+
+            <h3>Testing &amp; Validation</h3>
+            <p>Failed login attempts were simulated using Azure VM Run Command to trigger the detection rules without external exposure:</p>
+            <pre><code>for ($i=0; $i -lt 15; $i++) {
+    net use \\127.0.0.1\IPC$ /user:testautomation wrongpassword
+}</code></pre>
+
+            <p><strong>First test — Incident ID 29 (failed):</strong></p>
+            <p>The automation rule did not trigger. Root cause: the condition value was configured to match only one detection rule. The incident was generated by the other rule, so the condition evaluated false and the playbook was not invoked.</p>
+            <p>Resolution: updated the automation rule to explicitly include both detection rules in the condition.</p>
+
+            <p><strong>Second test — Incident ID 30 (successful):</strong></p>
+            <ul>
+                <li>Simulation executed successfully</li>
+                <li>Logs ingested within 5–10 minutes</li>
+                <li>Detection rule fired at scheduled interval</li>
+                <li>Incident created (ID 30)</li>
+                <li>Automation rule triggered immediately</li>
+                <li>Playbook executed successfully</li>
+                <li>Email delivered within 1–2 minutes</li>
+            </ul>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab04/playbook-run-history.png" alt="Playbook Run History">
+                <p class="screenshot-caption">Logic App run history showing successful execution for Incident ID 30</p>
+            </div>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab04/automation-verification.png" alt="Automation Verification">
+                <p class="screenshot-caption">End-to-end automation verified — incident created, playbook triggered, email delivered</p>
+            </div>
+
+            <h3>Production Validation</h3>
+            <p>Following successful internal testing, the honeypot VM was left running overnight to validate the automation against real-world attack traffic.</p>
+            <table class="writeup-table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Honeypot runtime</td>
+                        <td>~12 hours (overnight)</td>
+                    </tr>
+                    <tr>
+                        <td>Incidents detected</td>
+                        <td>21</td>
+                    </tr>
+                    <tr>
+                        <td>Automated emails sent</td>
+                        <td>21</td>
+                    </tr>
+                    <tr>
+                        <td>Logic App executions</td>
+                        <td>21 successful</td>
+                    </tr>
+                    <tr>
+                        <td>Failed executions</td>
+                        <td>0</td>
+                    </tr>
+                    <tr>
+                        <td>Automation success rate</td>
+                        <td>100% (21/21)</td>
+                    </tr>
+                    <tr>
+                        <td>Average response time</td>
+                        <td>&lt;2 minutes per incident</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>The automation handled every real-world incident without intervention. Execution was consistent across the full 12-hour window, confirming the workflow is production-ready.</p>
+
+            <h3>Troubleshooting</h3>
+            <p><strong>Automation rule condition mismatch</strong></p>
+            <p>Issue: Playbook did not execute for Incident ID 29 despite a valid incident being created. Cause: the automation rule condition matched only one of the two detection rules. The triggering incident was created by the unmatched rule, so the condition evaluated false. Resolution: updated the automation rule to select both detection rules explicitly. Lesson: always verify that condition values cover all analytics rules capable of generating the target incident type.</p>
+
+            <p><strong>Email delivered to spam folder</strong></p>
+            <p>Observation: automated emails from the Logic App were initially flagged as spam. Resolution: sender address added to safe senders list. In production environments, authenticated email services such as Office 365 or SendGrid should be used to ensure reliable delivery.</p>
+
+            <p><strong>Migration to Microsoft Defender portal</strong></p>
+            <p>Observation: Microsoft Sentinel features are progressively migrating to the unified Microsoft Defender portal. Incidents now surface under Defender → Incidents and Response, and automation rules may redirect to the Defender portal. Core functionality is unchanged.</p>
+
+            <h3>MITRE ATT&amp;CK Mapping</h3>
+            <table class="writeup-table">
+                <thead>
+                    <tr>
+                        <th>Technique</th>
+                        <th>ID</th>
+                        <th>Automated Response</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Brute Force</td>
+                        <td>T1110</td>
+                        <td>Detection triggers playbook → security team notified automatically</td>
+                    </tr>
+                    <tr>
+                        <td>Valid Accounts</td>
+                        <td>T1078</td>
+                        <td>Credential abuse incidents generate immediate alert email</td>
+                    </tr>
+                    <tr>
+                        <td>Remote Services: RDP</td>
+                        <td>T1021.001</td>
+                        <td>Failed RDP login detections routed through automated response workflow</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Analyst Conclusion</h3>
+            <p>This lab demonstrates how SOAR tooling directly reduces mean time to respond (MTTR) by eliminating the manual triage step for known alert patterns. A security analyst no longer needs to poll Sentinel for new incidents — the environment notifies them in real time with context sufficient for immediate assessment.</p>
+            <p>The 100% automation success rate across 21 real incidents confirms the workflow is reliable under genuine attack conditions, not just controlled test scenarios.</p>
+            <p>Recommended enhancements for production deployment:</p>
+            <ul>
+                <li>Threat intelligence integration — enrich incidents with VirusTotal and AbuseIPDB lookups before notification</li>
+                <li>Multi-channel notifications — route critical severity alerts to Microsoft Teams or Slack in addition to email</li>
+                <li>Automated containment — add an NSG rule action to block the offending IP on incident creation</li>
+                <li>Incident enrichment — append geolocation and ASN data to the incident directly in Sentinel, not just the email</li>
+                <li>Ticketing integration — create a ServiceNow ticket automatically for each incident to feed the formal response workflow</li>
+                <li>Escalation logic — add a conditional branch to page on-call staff for Critical severity incidents</li>
+            </ul>
+            <p>The broader takeaway: automation does not replace analyst judgment — it removes the latency between detection and human awareness. Every minute saved on alert notification is a minute gained for actual investigation and containment.</p>
+
+            <p class="meta">← <a href="writeup.html">Back to Write-ups</a></p>
+
+        </section>
+    </main>
+
+    <footer>
+        <p>© 2026 Jay. All rights reserved.</p>
+    </footer>
+
+</body>
+</html>

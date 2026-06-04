@@ -44,6 +44,28 @@ nav {
     width: 100%;
 }
 
+.profile-links {
+    font-size: 0.85rem;
+    color: #888;
+    margin-bottom: 1.5rem;
+}
+
+.profile-links a {
+    color: #888;
+    text-decoration: underline;
+    font-weight: 600;
+    transition: color 0.3s;
+}
+
+.profile-links a:visited {
+    color: #888;
+    text-decoration: underline;
+}
+
+.profile-links a:hover {
+    color: #fff;
+}
+
 .logo {
     font-size: 1.2rem;
     font-weight: 600;
@@ -56,8 +78,14 @@ nav {
 .logo:hover {
     color: #888;
 }
+
 a {
-  text-decoration: none;
+    text-decoration: none;
+    color: inherit;
+}
+
+a:visited {
+    color: inherit;
 }
 
 nav ul {
@@ -77,6 +105,10 @@ nav a {
     justify-content: center;
     filter: grayscale(100%);
     opacity: 0.7;
+}
+
+nav a:visited {
+    color: #888 !important;
 }
 
 nav a:hover,
@@ -115,11 +147,19 @@ h2 {
     font-weight: 700;
 }
 
+h3 {
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+    margin-top: 2rem;
+    color: #fff;
+    font-weight: 600;
+}
+
 p {
     font-size: 1rem;
     line-height: 1.7;
     margin-bottom: 1.5rem;
-    color: #b8b8b8 ;
+    color: #b8b8b8;
 }
 
 .subtitle {
@@ -129,7 +169,7 @@ p {
     font-weight: 400;
 }
 
-/* Home section with profile image */
+/* Home section */
 .home-container {
     display: flex;
     align-items: center;
@@ -156,6 +196,7 @@ p {
     max-width: 600px;
     text-align: left;
 }
+
 /* Grid sections */
 .grid {
     display: grid;
@@ -171,20 +212,26 @@ p {
     border-radius: 4px;
     transition: all 0.3s;
 }
+
 .card:hover {
     border-color: #fff;
     background: #222;
 }
-.card a:hover 
-{
-    color: #888;
-}
-.card a 
-{
+
+.card a {
     color: #fff;
     text-decoration: none;
     transition: color 0.3s;
 }
+
+.card a:visited {
+    color: #fff;
+}
+
+.card a:hover {
+    color: #888;
+}
+
 .card h3 {
     font-size: 1.3rem;
     margin-bottom: 0.5rem;
@@ -200,7 +247,7 @@ p {
 
 .card p {
     font-size: 0.95rem;
-    color: #b8b8b8 ;
+    color: #b8b8b8;
     line-height: 1.6;
 }
 
@@ -249,12 +296,12 @@ p {
 .gallery-caption {
     text-align: center;
     font-size: 0.9rem;
-    color: #b8b8b8 ;
+    color: #b8b8b8;
     padding: 0.75rem;
     background: #0a0a0a;
     border-top: 1px solid rgba(224, 224, 224, 0.1);
     margin: 0;
-	flex-shrink: 0;
+    flex-shrink: 0;
 }
 
 /* Contact section */
@@ -263,6 +310,7 @@ p {
     gap: 2rem;
     margin-top: 2rem;
     flex-wrap: wrap;
+    flex: 1;
 }
 
 .contact-link {
@@ -274,11 +322,15 @@ p {
     padding-bottom: 0.25rem;
 }
 
+.contact-link:visited {
+    color: #e0e0e0;
+}
+
 .contact-link:hover {
     color: #fff;
     border-bottom-color: rgba(224, 224, 224, 0.5);
 }
-/* CONTACT WRAPPER */
+
 .contact-wrapper {
     display: flex;
     justify-content: space-between;
@@ -286,11 +338,7 @@ p {
     gap: 2rem;
 }
 
-.contact-links {
-    flex: 1;
-}
-
-/* FLAG COUNTER */
+/* Flag counter */
 .flag-counter {
     margin-top: 0;
     text-align: right;
@@ -302,18 +350,136 @@ p {
     height: auto;
 }
 
-/* RESPONSIVE - MOBILE */
-@media (max-width: 768px) {
-    .contact-wrapper {
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .flag-counter {
-        text-align: center;
-    }
+/* Write-up styles */
+.writeup-screenshot {
+    margin: 1.5rem auto;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #1a1a1a;
+    max-width: 70%;
 }
 
+.writeup-screenshot img {
+    width: 100%;
+    max-height: 400px;
+    object-fit: contain;
+    background: #111;
+    display: block;
+}
+
+.screenshot-caption {
+    font-size: 0.8rem;
+    color: #888;
+    padding: 0.5rem 1rem;
+    margin: 0;
+    border-top: 1px solid #2a2a2a;
+}
+
+pre {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 1.25rem;
+    overflow-x: auto;
+    margin: 1rem auto 1.5rem auto;
+    max-width: 70%;
+    display: block;
+}
+
+code {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9rem;
+    color: #c9a84c;
+    line-height: 1.6;
+}
+
+/* Write-up table */
+.writeup-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 2rem;
+    font-size: 0.95rem;
+    table-layout: fixed;
+    word-wrap: break-word;
+}
+
+.writeup-table th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    border-bottom: 2px solid #fff;
+    color: #fff;
+    font-weight: 600;
+}
+
+.writeup-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #2a2a2a;
+    color: #b8b8b8;
+    vertical-align: top;
+}
+
+.writeup-table tr:hover td {
+    background: #1a1a1a;
+}
+
+.writeup-table a {
+    color: #fff;
+    text-decoration: underline;
+    font-weight: 600;
+    transition: color 0.3s;
+}
+
+.writeup-table a:visited {
+    color: #888;
+    text-decoration: underline;
+    font-weight: 600;
+}
+
+.writeup-table a:hover {
+    color: #c9a84c;
+    text-decoration: underline;
+}
+.writeup-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 2rem;
+    font-size: 0.95rem;
+}
+
+.writeup-table th:nth-child(1),
+.writeup-table td:nth-child(1) {
+    width: 80px;
+    white-space: nowrap;
+}
+
+.writeup-table th:nth-child(2),
+.writeup-table td:nth-child(2) {
+    width: auto;
+}
+
+.writeup-table th:nth-child(3),
+.writeup-table td:nth-child(3) {
+    width: 160px;
+    white-space: nowrap;
+}
+section p a {
+    color: #fff;
+    text-decoration: underline;
+    font-weight: 600;
+    transition: color 0.3s;
+}
+
+section p a:visited {
+    color: #888;
+    text-decoration: underline;
+}
+
+section p a:hover {
+    color: #c9a84c;
+}
+
+/* Footer */
 footer {
     background: #2a2a2a;
     border-top: 1px solid rgba(224, 224, 224, 0.1);
@@ -331,6 +497,24 @@ footer p {
     margin: 0;
 }
 
+/* Responsive */
+@	(max-width: 768px) {
+    .contact-wrapper {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .flag-counter {
+        text-align: center;
+    }
+}
+.writeup-table th:nth-child(1),
+.writeup-table td:nth-child(1),
+.writeup-table th:nth-child(3),
+.writeup-table td:nth-child(3) {
+    width: auto;
+    white-space: normal;
+}
 @media (max-width: 1024px) {
     main {
         max-width: 90%;
@@ -438,6 +622,14 @@ footer p {
     footer {
         padding: 1rem;
         font-size: 0.8rem;
+    }
+
+    pre {
+        max-width: 100%;
+    }
+
+    .writeup-screenshot {
+        max-width: 100%;
     }
 }
 

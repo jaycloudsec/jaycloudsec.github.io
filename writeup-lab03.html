@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jay — Write-ups | Lab 03</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo"></div>
+            <ul>
+                <li><a href="index.html" class="nav-link">Home</a></li>
+                <li><a href="index.html#experience" class="nav-link">Experience</a></li>
+                <li><a href="index.html#certifications" class="nav-link">Certifications</a></li>
+                <li><a href="index.html#projects" class="nav-link">Projects</a></li>
+                <li><a href="writeup.html" class="nav-link">Write-ups</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section id="writeup-lab03">
+
+            <h2>Lab 03 — Honeypot Threat Intelligence</h2>
+            <p class="meta">Threat Intelligence · Honeypot · Microsoft Sentinel · Azure · KQL</p>
+
+            <h3>Overview</h3>
+            <p>This write-up documents a real-world threat intelligence investigation conducted using a deliberately exposed honeypot virtual machine in Microsoft Azure. Unlike the simulated attack activity in Labs 01 and 02, every data point in this investigation came from actual attackers on the internet.</p>
+            <p>Within hours of deployment, the honeypot attracted over 64,760 failed login attempts. Analysis of the attack data revealed a coordinated botnet operating from Netherlands-based infrastructure — all six top attacking IPs traced back to the same autonomous system, the same ISP, and the same physical coordinates in Amsterdam.</p>
+
+            <h3>Environment</h3>
+            <p>The following architecture was used for this investigation:</p>
+            <pre><code>Internet (Global Attackers)
+↓
+Azure Public IP (No NSG Restrictions)
+↓
+Honeypot Windows VM (RDP Exposed)
+↓
+Windows Security Event Logs
+↓
+Azure Monitor Agent
+↓
+Log Analytics Workspace
+↓
+Microsoft Sentinel</code></pre>
+
+            <p>Technologies used:</p>
+            <ul>
+                <li>Microsoft Azure</li>
+                <li>Microsoft Sentinel</li>
+                <li>Windows Virtual Machine (Honeypot)</li>
+                <li>Azure Monitor Agent</li>
+                <li>Log Analytics Workspace</li>
+                <li>KQL (Kusto Query Language)</li>
+                <li>IP Geolocation API (ip-api.com)</li>
+                <li>LibreOffice Calc</li>
+            </ul>
+
+            <h3>Honeypot Configuration</h3>
+            <p>A honeypot is a deliberately vulnerable system designed to attract attackers and collect threat intelligence. The VM was configured with maximum exposure to generate real-world attack data.</p>
+
+            <p>VM configuration:</p>
+            <ul>
+                <li>VM Name: honeypot-vm</li>
+                <li>Region: Australia East</li>
+                <li>Operating System: Windows 10 Enterprise 22H2</li>
+                <li>VM Size: Standard B2ts v2 (2 vCPU, 1 GB memory)</li>
+                <li>Public IP: Enabled</li>
+                <li>Auto-shutdown: Disabled</li>
+            </ul>
+
+            <p>Intentional exposure settings:</p>
+            <ul>
+                <li>Network Security Group configured with Allow All inbound rule (Priority 100, any source, any port, any protocol)</li>
+                <li>Windows Firewall disabled across all profiles (Domain, Private, Public)</li>
+                <li>RDP port 3389 fully exposed to the internet</li>
+                <li>No authentication restrictions</li>
+            </ul>
+
+            <pre><code>Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
+Get-NetFirewallProfile | Select-Object Name, Enabled</code></pre>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab03/honeypot-vm-deployment.png" alt="Honeypot VM Deployment">
+                <p class="screenshot-caption">Honeypot VM deployed in Azure with public IP and maximum exposure configuration</p>
+            </div>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab03/nsg-allow-all-rule.png" alt="NSG Allow All Rule">
+                <p class="screenshot-caption">Network Security Group configured to allow all inbound traffic — intentional honeypot exposure</p>
+            </div>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab03/windows-firewall-disabled.png" alt="Windows Firewall Disabled">
+                <p class="screenshot-caption">All three Windows Firewall profiles disabled to maximize attack surface</p>
+            </div>
+
+            <h3>Data Collection</h3>
+            <p>The existing Data Collection Rule from previous lab projects was reused to collect Windows Security Events. After waiting 10-15 minutes for log ingestion, security events were verified using the following query:</p>
+            <pre><code>SecurityEvent
+| where Computer == "honeypot-vm"
+| take 10</code></pre>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab03/honeypot-log-verification.png" alt="Log Verification">
+                <p class="screenshot-caption">Security events confirmed flowing from the honeypot VM into Microsoft Sentinel</p>
+            </div>
+
+            <h3>Attack Volume Analysis</h3>
+            <p>Failed login attempts were extracted using Windows Event ID 4625. The following query identified the top attacking IP addresses:</p>
+            <pre><code>SecurityEvent
+| where EventID == 4625
+| where Computer == "honeypot-vm"
+| summarize FailedAttempts = count() by IpAddress
+| sort by FailedAttempts desc
+| take 20</code></pre>
+
+            <p>Top 6 attacking IP addresses:</p>
+            <table class="writeup-table">
+                <thead>
+                    <tr>
+                        <th>IP Address</th>
+                        <th>Failed Attempts</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>185.156.73.169</td>
+                        <td>11,489</td>
+                    </tr>
+                    <tr>
+                        <td>92.63.197.9</td>
+                        <td>10,697</td>
+                    </tr>
+                    <tr>
+                        <td>92.63.197.69</td>
+                        <td>10,693</td>
+                    </tr>
+                    <tr>
+                        <td>185.156.73.24</td>
+                        <td>10,655</td>
+                    </tr>
+                    <tr>
+                        <td>185.156.73.59</td>
+                        <td>10,641</td>
+                    </tr>
+                    <tr>
+                        <td>185.156.73.173</td>
+                        <td>10,585</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p><strong>Total: 64,760+ failed login attempts across all sources.</strong></p>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab03/failed-rdp-attempts.png" alt="Failed RDP Attempts">
+                <p class="screenshot-caption">Top attacking IP addresses ranked by failed login attempt volume</p>
+            </div>
+
+            <h3>Targeted Credential Analysis</h3>
+            <p>The most commonly targeted usernames were extracted to identify the attack pattern:</p>
+            <table class="writeup-table">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Attempts</th>
+                        <th>Significance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>administrator</td>
+                        <td>1,040</td>
+                        <td>Default Windows admin account</td>
+                    </tr>
+                    <tr>
+                        <td>user</td>
+                        <td>981</td>
+                        <td>Generic dictionary entry</td>
+                    </tr>
+                    <tr>
+                        <td>admin</td>
+                        <td>926</td>
+                        <td>Common default credential</td>
+                    </tr>
+                    <tr>
+                        <td>administrador</td>
+                        <td>303</td>
+                        <td>Spanish — indicates multilingual wordlist</td>
+                    </tr>
+                    <tr>
+                        <td>test</td>
+                        <td>222</td>
+                        <td>Common test account name</td>
+                    </tr>
+                    <tr>
+                        <td>scanner</td>
+                        <td>190</td>
+                        <td>Targets misconfigured scanning accounts</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p>The presence of <strong>administrador</strong> (Spanish) confirms the attacker is using a multilingual dictionary wordlist — a standard characteristic of automated botnet credential attacks targeting systems globally.</p>
+
+            <h3>Threat Intelligence Enrichment</h3>
+            <p>Attacker IPs were exported to CSV and enriched using the ip-api.com geolocation API. For each IP, the following data was collected: country, city, ISP, organization, latitude/longitude, and AS number.</p>
+
+            <p>Example geolocation data for the top attacking IP (185.156.73.169 — 11,489 attempts):</p>
+            <pre><code>{
+  "country": "The Netherlands",
+  "city": "Amsterdam",
+  "isp": "FOP Dmytro Nedilskyi",
+  "org": "IP Kiktev Nikolay Vladimirovich",
+  "as": "AS211736 FOP Dmytro Nedilskyi",
+  "lat": 52.3676,
+  "lon": 4.90414
+}</code></pre>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab03/geolocation-enrichment.png" alt="Geolocation Enrichment">
+                <p class="screenshot-caption">IP geolocation enrichment data compiled in LibreOffice Calc for all attacking IPs</p>
+            </div>
+
+            <h3>Key Finding: Coordinated Botnet</h3>
+            <p>After enriching all six top attacking IPs, a critical pattern emerged — every IP shared identical geolocation data:</p>
+            <table class="writeup-table">
+                <thead>
+                    <tr>
+                        <th>Attribute</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Country</td>
+                        <td>Netherlands</td>
+                    </tr>
+                    <tr>
+                        <td>City</td>
+                        <td>Amsterdam</td>
+                    </tr>
+                    <tr>
+                        <td>ISP</td>
+                        <td>FOP Dmytro Nedilskyi</td>
+                    </tr>
+                    <tr>
+                        <td>AS Number</td>
+                        <td>AS211736</td>
+                    </tr>
+                    <tr>
+                        <td>Coordinates</td>
+                        <td>52.3676, 4.90414</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p>This is not a coincidence. Six different IP addresses producing identical geolocation and ASN data is the signature of a <strong>coordinated botnet attack</strong> — a single threat actor operating multiple IPs from the same infrastructure to distribute the attack load and evade simple IP-based blocking. Blocking one IP would have no meaningful impact; the remaining five would continue at full volume.</p>
+            <p>This finding demonstrates why IP reputation alone is insufficient as a defense. The correct response is to block the entire ASN range at the network perimeter.</p>
+
+            <h3>Attack Timeline</h3>
+            <p>Attack volume was visualized over time using the following KQL query:</p>
+            <pre><code>SecurityEvent
+| where EventID == 4625
+| where Computer == "honeypot-vm"
+| summarize AttackCount = count() by bin(TimeGenerated, 1h)
+| render timechart</code></pre>
+
+            <p>Timeline findings:</p>
+            <ul>
+                <li>Attacks began within hours of honeypot deployment</li>
+                <li>Peak volume reached approximately 37,000 attempts per hour around 2:00 PM UTC</li>
+                <li>Sustained high-volume activity lasted approximately 3 hours</li>
+                <li>Gradual decrease from peak consistent with automated scanning behavior</li>
+            </ul>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab03/attack-pattern-analysis.png" alt="Attack Pattern Analysis">
+                <p class="screenshot-caption">Attack volume over time — peak of ~37,000 attempts per hour followed by gradual decline</p>
+            </div>
+
+            <p>The rapid onset and consistent volume pattern confirms fully automated botnet scanning. Human-operated attacks show irregular timing and variable intensity — this data shows neither.</p>
+
+            <h3>Industry Context</h3>
+            <p>The findings from this investigation align directly with published threat intelligence on internet-facing RDP exposure:</p>
+            <ul>
+                <li>90% of exposed RDP servers are attacked within 24 hours of deployment — this honeypot was attacked within hours</li>
+                <li>Amsterdam is a well-documented hosting location for attack infrastructure due to permissive hosting providers</li>
+                <li>Default credential targeting (administrator, admin) is the primary attack vector for automated credential attacks globally</li>
+                <li>Botnet operators routinely distribute attacks across multiple IPs from the same infrastructure to bypass per-IP rate limiting</li>
+            </ul>
+
+            <h3>MITRE ATT&CK Mapping</h3>
+            <table class="writeup-table">
+                <thead>
+                    <tr>
+                        <th>Technique</th>
+                        <th>ID</th>
+                        <th>Observation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Brute Force: Password Guessing</td>
+                        <td>T1110.001</td>
+                        <td>64,760+ failed login attempts against default credentials</td>
+                    </tr>
+                    <tr>
+                        <td>Brute Force: Password Spraying</td>
+                        <td>T1110.003</td>
+                        <td>Multiple usernames targeted across all attacking IPs</td>
+                    </tr>
+                    <tr>
+                        <td>Valid Accounts</td>
+                        <td>T1078</td>
+                        <td>Attack focused on default admin account names</td>
+                    </tr>
+                    <tr>
+                        <td>Remote Services: RDP</td>
+                        <td>T1021.001</td>
+                        <td>All attacks conducted via exposed RDP port 3389</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Analyst Conclusion</h3>
+            <p>This investigation produced actionable threat intelligence from real attack data. The coordinated botnet finding, the credential targeting patterns, and the timeline analysis together form a complete picture of the threat actor's behavior and infrastructure.</p>
+            <p>In a production SOC environment, the immediate next steps following this investigation would be:</p>
+            <ul>
+                <li>Block AS211736 at the network perimeter — all six IPs originate from this ASN</li>
+                <li>Submit all six IPs to AbuseIPDB for public threat intelligence contribution</li>
+                <li>Update NSG rules to restrict RDP access to known IP ranges only</li>
+                <li>Enable MFA on all accounts — credential stuffing is ineffective against MFA</li>
+                <li>Rename or disable the default Administrator account to remove the primary attack target</li>
+                <li>Create a Sentinel watchlist for AS211736 to flag future activity from the same infrastructure</li>
+                <li>Escalate the botnet infrastructure finding to L2 for threat hunting across other monitored assets</li>
+            </ul>
+            <p>The broader takeaway: any internet-facing system without network restrictions will be attacked within hours. The question is not whether attackers will find it — they will — but whether the environment is instrumented to detect and respond when they do.</p>
+
+            <p class="meta">← <a href="writeup.html">Back to Write-ups</a></p>
+
+        </section>
+    </main>
+
+    <footer>
+        <p>© 2026 Jay. All rights reserved.</p>
+    </footer>
+
+</body>
+</html>

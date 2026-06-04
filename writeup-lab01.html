@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jay — Write-ups | Lab 01</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo"></div>
+            <ul>
+                <li><a href="index.html" class="nav-link">Home</a></li>
+                <li><a href="index.html#experience" class="nav-link">Experience</a></li>
+                <li><a href="index.html#certifications" class="nav-link">Certifications</a></li>
+                <li><a href="index.html#projects" class="nav-link">Projects</a></li>
+                <li><a href="writeup.html" class="nav-link">Write-ups</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section id="writeup-lab01">
+
+            <h2>Lab 01 — SOC Incident Investigation</h2>
+            <p class="meta">Threat Detection · Microsoft Sentinel · Azure · KQL</p>
+
+            <h3>Overview</h3>
+            <p>This write-up documents a SOC analyst investigation into authentication activity using Microsoft Sentinel. Windows Security Event logs collected from a monitored virtual machine were analyzed to identify failed login attempts and investigate potential brute-force authentication activity. The investigation demonstrates how analysts use SIEM tools to analyze logs, identify suspicious behavior, and document findings during a security investigation — without relying on automated alerting.</p>
+
+            <h3>Environment</h3>
+            <p>The following architecture was used for this investigation:</p>
+            <pre><code>Simulated Attack Activity
+↓
+Windows Security Logs (Virtual Machine)
+↓
+Log Analytics Workspace
+↓
+Microsoft Sentinel
+↓
+SOC Analyst Investigation</code></pre>
+
+            <p>Technologies used:</p>
+            <ul>
+                <li>Microsoft Azure</li>
+                <li>Microsoft Sentinel</li>
+                <li>Log Analytics Workspace</li>
+                <li>Windows Security Event Logs</li>
+                <li>Kusto Query Language (KQL)</li>
+            </ul>
+
+            <h3>Objectives</h3>
+            <ul>
+                <li>Verify log ingestion into Microsoft Sentinel</li>
+                <li>Identify failed authentication attempts</li>
+                <li>Investigate suspicious IP activity</li>
+                <li>Analyze successful login events</li>
+                <li>Review the Sentinel incident dashboard</li>
+                <li>Perform entity investigation from log data</li>
+            </ul>
+
+            <h3>Simulated Attack Activity</h3>
+            <p>Failed login attempts were intentionally generated using the Run Command feature within the Azure Virtual Machine. This approach was used instead of RDP or SSH because the VM is normally kept powered off to reduce cloud costs. Using Run Command allowed authentication failures to be simulated while minimizing VM runtime.</p>
+            <p>The following PowerShell commands attempted logins with multiple fake usernames and incorrect passwords, generating Windows Event ID 4625 logs:</p>
+            <pre><code>net use \\127.0.0.1\IPC$ /user:fakeuser1 wrongpassword
+net use \\127.0.0.1\IPC$ /user:fakeuser2 wrongpassword
+net use \\127.0.0.1\IPC$ /user:administrator wrongpassword</code></pre>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab01/simulated-attack-run-command.png" alt="Simulated Attack Run Command">
+                <p class="screenshot-caption">Run Command used to simulate failed login attempts inside the Azure VM</p>
+            </div>
+
+            <h3>Log Verification</h3>
+            <p>To confirm that logs were being ingested into Sentinel, the following query was executed:</p>
+            <pre><code>SecurityEvent
+| take 10</code></pre>
+            <p>This returned Windows security events from the monitored VM, confirming successful log ingestion.</p>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab01/sentinel-log-query.png" alt="Log Query Results">
+                <p class="screenshot-caption">KQL query confirming successful log ingestion into Microsoft Sentinel</p>
+            </div>
+
+            <h3>Failed Login Investigation</h3>
+            <p>Failed authentication attempts were identified using Windows Event ID 4625. This event is generated every time an account fails to log on, making it a primary indicator for brute force detection.</p>
+            <pre><code>SecurityEvent
+| where EventID == 4625
+| summarize FailedAttempts = count() by Account, IpAddress
+| sort by FailedAttempts desc</code></pre>
+            <p>This query surfaces which accounts experienced failed logins and the number of attempts per IP address, allowing the analyst to identify high-volume sources quickly.</p>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab01/failed-login-query.png" alt="Failed Login Query">
+                <p class="screenshot-caption">Failed login attempts summarized by account and IP address</p>
+            </div>
+
+            <h3>Suspicious IP Investigation</h3>
+            <p>The source IP address associated with the failed logins was investigated further to analyze the timeline of activity.</p>
+            <pre><code>SecurityEvent
+| where IpAddress == "127.0.0.1"
+| sort by TimeGenerated desc</code></pre>
+
+            <p><strong>Lab context note:</strong> The IP address appears as 127.0.0.1 because the attack activity was simulated locally within the VM using Run Command. In a production environment, this IP would be an external address — the investigation workflow remains identical. The analyst would pivot on the IP, build a timeline, and correlate against threat intelligence feeds. The 127.0.0.1 result here confirms the simulation ran as expected inside the VM boundary.</p>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab01/attacker-ip-investigation.png" alt="IP Investigation">
+                <p class="screenshot-caption">Timeline of activity for the source IP address</p>
+            </div>
+
+            <h3>Successful Login Analysis</h3>
+            <p>After identifying failed attempts, the next analyst step is to determine whether any attempt eventually succeeded. Windows Event ID 4624 represents a successful logon.</p>
+            <pre><code>SecurityEvent
+| where EventID == 4624
+| summarize LoginCount = count() by Account, IpAddress
+| sort by LoginCount desc</code></pre>
+            <p>This query allows the analyst to cross-reference failed logins against successful ones — the critical question being whether a brute force attempt resulted in unauthorized access.</p>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab01/successful-login-query.png" alt="Successful Login Query">
+                <p class="screenshot-caption">Successful login events summarized by account and IP address</p>
+            </div>
+
+            <h3>Sentinel Dashboard Review</h3>
+            <p>The Sentinel Incidents dashboard was reviewed to observe how alerts and security incidents appear in a live environment. At the time of this investigation, no incidents were present.</p>
+            <p><strong>Why no incidents were generated:</strong> This is expected behavior. At this stage of the lab series, no analytics detection rules had been configured yet. Sentinel only generates incidents when a detection rule fires. The absence of incidents here is not a gap — it sets the baseline that Lab 02 (Detection Engineering) addresses by building the KQL rule that would have caught this activity automatically.</p>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab01/sentinel-incidents.png" alt="Sentinel Incidents Dashboard">
+                <p class="screenshot-caption">Sentinel Incidents dashboard — no incidents present at this stage, as expected</p>
+            </div>
+
+            <h3>Entity Investigation</h3>
+            <p>Security events were expanded to review entity details. In a real SOC environment, entity investigation is how analysts pivot between related events to build a complete picture of an incident.</p>
+            <p>Entities reviewed:</p>
+            <ul>
+                <li>Account — which user accounts were targeted</li>
+                <li>Computer — which host generated the events</li>
+                <li>IP Address — source of the authentication attempts</li>
+                <li>Event ID — classification of the security event</li>
+                <li>Timestamp — timeline reconstruction</li>
+            </ul>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab01/investigation-graph.png" alt="Entity Investigation">
+                <p class="screenshot-caption">Entity details expanded for timeline reconstruction and pivot analysis</p>
+            </div>
+
+            <h3>MITRE ATT&CK Mapping</h3>
+            <table class="writeup-table">
+                <thead>
+                    <tr>
+                        <th>Technique</th>
+                        <th>ID</th>
+                        <th>Investigation Activity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Brute Force: Password Guessing</td>
+                        <td>T1110.001</td>
+                        <td>Analyzed Event ID 4625 failed login attempts</td>
+                    </tr>
+                    <tr>
+                        <td>Brute Force: Password Spraying</td>
+                        <td>T1110.003</td>
+                        <td>Identified pattern of multiple accounts targeted</td>
+                    </tr>
+                    <tr>
+                        <td>Valid Accounts</td>
+                        <td>T1078</td>
+                        <td>Correlated successful and failed login events</td>
+                    </tr>
+                    <tr>
+                        <td>Remote Services: RDP</td>
+                        <td>T1021.001</td>
+                        <td>Investigated RDP authentication events</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Analyst Conclusion</h3>
+            <p>This investigation successfully demonstrated the core manual triage workflow of an L1 SOC analyst — log verification, failed login identification, IP timeline analysis, successful login correlation, and entity pivoting — all without relying on automated alerting.</p>
+            <p>The absence of automated incidents is the key takeaway from this lab. A SOC analyst working without detection rules must rely entirely on manual KQL queries to surface suspicious activity. This is the gap that detection engineering closes.</p>
+            <p>In a production environment, the next steps following this investigation would be:</p>
+            <ul>
+                <li>Enrich the source IP against threat intelligence feeds (AbuseIPDB, VirusTotal)</li>
+                <li>Check if the account targeted has elevated privileges</li>
+                <li>Determine if any successful login followed the failed attempts</li>
+                <li>Escalate to L2 if successful login is confirmed from same source IP</li>
+                <li>Document findings in the ticketing system with timeline and evidence</li>
+                <li>Recommend creation of a detection rule to automate alerting — covered in Lab 02</li>
+            </ul>
+
+            <br><p class="meta">← <a href="writeup.html">Back to Write-ups</a></p>
+
+        </section>
+    </main>
+
+    <footer>
+        <p>© 2026 Jay. All rights reserved.</p>
+    </footer>
+
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jay — Write-ups | Lab 02</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo"></div>
+            <ul>
+                <li><a href="index.html" class="nav-link">Home</a></li>
+                <li><a href="index.html#experience" class="nav-link">Experience</a></li>
+                <li><a href="index.html#certifications" class="nav-link">Certifications</a></li>
+                <li><a href="index.html#projects" class="nav-link">Projects</a></li>
+                <li><a href="writeup.html" class="nav-link">Write-ups</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section id="writeup-lab02">
+
+            <h2>Lab 02 — Detection Engineering</h2>
+            <p class="meta">Detection Engineering · KQL · Microsoft Sentinel · Azure</p>
+
+            <h3>Overview</h3>
+            <p>This write-up documents the process of building a custom detection rule in Microsoft Sentinel using Kusto Query Language (KQL). The goal was to create a scheduled analytics rule capable of automatically detecting brute-force authentication activity — the manual investigation process covered in Lab 01, now automated through detection engineering.</p>
+            <p>Detection engineering is the practice of translating threat knowledge into automated detection logic. Where Lab 01 relied on manual KQL queries to surface suspicious activity, Lab 02 builds the rule that would fire automatically when that activity occurs.</p>
+
+            <h3>Environment</h3>
+            <p>The following architecture was used for this lab:</p>
+            <pre><code>Windows Virtual Machine (Attack Simulation)
+↓
+Windows Security Event Logs
+↓
+Azure Monitor Agent
+↓
+Log Analytics Workspace
+↓
+Microsoft Sentinel
+↓
+Scheduled Analytics Rule (KQL)
+↓
+Automated Alert / Incident</code></pre>
+
+            <p>Technologies used:</p>
+            <ul>
+                <li>Microsoft Azure</li>
+                <li>Microsoft Sentinel</li>
+                <li>Log Analytics Workspace</li>
+                <li>Windows Virtual Machine</li>
+                <li>Azure Monitor Agent</li>
+                <li>KQL (Kusto Query Language)</li>
+            </ul>
+
+            <h3>Detection Scenario</h3>
+            <p>Brute-force attacks attempt to gain unauthorized access by repeatedly submitting incorrect login credentials. Windows systems generate Event ID 4625 whenever an authentication attempt fails. By analyzing these events in Microsoft Sentinel, a detection rule can identify patterns indicating a possible brute-force attempt.</p>
+            <p>The detection threshold used in this lab — five or more failed attempts from the same IP address — is a common starting point for brute-force detection rules in production environments. In practice, this threshold is tuned based on the organization's baseline authentication behavior.</p>
+
+            <h3>KQL Detection Query</h3>
+            <p>The following query forms the core detection logic for the analytics rule:</p>
+            <pre><code>SecurityEvent
+| where EventID == 4625
+| summarize FailedAttempts = count() by Account, IpAddress
+| where FailedAttempts >= 5
+| sort by FailedAttempts desc</code></pre>
+            <p>Breaking down the query logic:</p>
+            <ul>
+                <li><strong>EventID == 4625</strong> — filters for failed authentication events only</li>
+                <li><strong>summarize count() by Account, IpAddress</strong> — groups failures by account and source IP</li>
+                <li><strong>FailedAttempts >= 5</strong> — applies the detection threshold</li>
+                <li><strong>sort by FailedAttempts desc</strong> — surfaces highest-volume sources first</li>
+            </ul>
+
+            <h3>Detection Rule Configuration</h3>
+            <p>The analytics rule was configured in Microsoft Sentinel under Analytics → Create → Scheduled Query Rule.</p>
+
+            <p>Rule settings:</p>
+            <ul>
+                <li>Name: Multiple Failed Login Detection</li>
+                <li>Severity: Medium</li>
+                <li>MITRE ATT&CK Tactic: Credential Access</li>
+                <li>Query frequency: Every 5 minutes</li>
+                <li>Lookup window: Last 5 minutes</li>
+                <li>Alert threshold: Results greater than 0</li>
+                <li>Incident creation: Enabled</li>
+                <li>Alert grouping: Disabled</li>
+            </ul>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab02/analytics-rule-logic.png" alt="Analytics Rule Configuration">
+                <p class="screenshot-caption">Scheduled analytics rule configured in Microsoft Sentinel with KQL detection logic</p>
+            </div>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab02/sentinel-active-detection-rule.png" alt="Active Detection Rule">
+                <p class="screenshot-caption">Detection rule active and enabled in the Sentinel Analytics dashboard</p>
+            </div>
+
+            <h3>Attack Simulation</h3>
+            <p>Failed authentication attempts were simulated using the Run Command feature inside the Azure VM. RDP and SSH access were not used in this lab to minimize VM runtime and reduce costs.</p>
+            <p>The following PowerShell script was used to generate Event ID 4625 logs:</p>
+            <pre><code>for ($i=0; $i -lt 10; $i++) {
+    net use \\127.0.0.1\IPC$ /user:administrator wrongpassword
+}</code></pre>
+            <p>This loop executes ten failed login attempts against the local machine, each generating a Windows Security Event ID 4625 entry that flows through the log ingestion pipeline into Sentinel.</p>
+
+            <div class="writeup-screenshot">
+                <img src="screenshots/lab02/failed-login-simulation.png" alt="Failed Login Simulation">
+                <p class="screenshot-caption">Run Command executing the PowerShell simulation script inside the Azure VM</p>
+            </div>
+
+            <h3>Troubleshooting</h3>
+            <p>During testing, the simulated authentication failures were successfully generated and confirmed visible in the Log Analytics workspace. However, Microsoft Sentinel did not generate alerts or incidents during the testing window.</p>
+
+            <p>Troubleshooting steps performed:</p>
+            <ul>
+                <li>Confirmed failed login events were present using manual KQL query</li>
+                <li>Verified rule status was Enabled</li>
+                <li>Confirmed query frequency and lookup window were set to 5 minutes</li>
+                <li>Confirmed incident creation was enabled</li>
+                <li>Confirmed alert threshold was set to results greater than 0</li>
+            </ul>
+
+            <p>Validation query used to confirm log presence:</p>
+            <pre><code>SecurityEvent
+| where EventID == 4625
+| sort by TimeGenerated desc</code></pre>
+
+            <p>Possible causes for missing alerts:</p>
+            <ul>
+                <li>Low telemetry volume in a single-VM lab environment</li>
+                <li>Scheduled rule executing outside the event generation window</li>
+                <li>Backend processing delays within Microsoft Sentinel</li>
+                <li>Incident management functionality migrating to the Microsoft Defender portal</li>
+            </ul>
+
+            <p><strong>Analyst note:</strong> The absence of automated alerts does not invalidate the detection engineering work. The rule logic, configuration, and validation steps are correct. In a production environment with sustained authentication activity, this rule would fire consistently — as demonstrated in Lab 04 where the same rule pattern triggered 21 automated responses against real honeypot attack data.</p>
+
+            <h3>Detection Best Practices</h3>
+            <p>Threshold tuning considerations for production environments:</p>
+            <ul>
+                <li>Adjust the FailedAttempts threshold based on the organization's authentication baseline</li>
+                <li>Lower thresholds for privileged accounts — even 3 failures may warrant investigation</li>
+                <li>Add exclusions for known service accounts that generate expected failures</li>
+                <li>Consider time-of-day patterns — failures at 3AM carry different weight than business hours</li>
+            </ul>
+
+            <p>False positive reduction strategies:</p>
+            <ul>
+                <li>Exclude known admin IP ranges from the detection query</li>
+                <li>Filter out scheduled maintenance windows</li>
+                <li>Correlate with asset inventory to identify high-value targets</li>
+                <li>Track service account behavior separately from user accounts</li>
+            </ul>
+
+            <h3>MITRE ATT&CK Mapping</h3>
+            <table class="writeup-table">
+                <thead>
+                    <tr>
+                        <th>Technique</th>
+                        <th>ID</th>
+                        <th>Detection Activity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Brute Force: Password Guessing</td>
+                        <td>T1110.001</td>
+                        <td>Detection rule fires on repeated Event ID 4625</td>
+                    </tr>
+                    <tr>
+                        <td>Brute Force: Password Spraying</td>
+                        <td>T1110.003</td>
+                        <td>Rule identifies multiple accounts targeted from same IP</td>
+                    </tr>
+                    <tr>
+                        <td>Valid Accounts</td>
+                        <td>T1078</td>
+                        <td>Threshold breach triggers alert for analyst review</td>
+                    </tr>
+                    <tr>
+                        <td>Credential Access</td>
+                        <td>TA0006</td>
+                        <td>MITRE tactic assigned to the analytics rule</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Analyst Conclusion</h3>
+            <p>This lab demonstrates the full detection engineering workflow — translating threat knowledge into automated SIEM detection logic using KQL. The rule was correctly configured, the attack was successfully simulated, and logs were confirmed present in the workspace.</p>
+            <p>The troubleshooting section is intentionally included and not treated as a failure. Real SOC work involves detection rules that don't fire as expected — diagnosing why, validating the logic independently, and documenting the investigation is exactly what an analyst does. The ability to distinguish between a rule problem and an environment problem is a core L1 skill.</p>
+            <p>In a production environment, next steps would be:</p>
+            <ul>
+                <li>Extend the lookup window to 15-30 minutes to account for processing delays</li>
+                <li>Run the detection query manually against a longer time range to verify it would have fired</li>
+                <li>Test rule firing by increasing simulation volume beyond the threshold</li>
+                <li>Document the rule in a detection catalog with owner, last tested date, and false positive rate</li>
+                <li>Validate end-to-end automation — covered in Lab 04</li>
+            </ul>
+
+            <br><p class="meta">← <a href="writeup.html">Back to Write-ups</a></p>
+
+        </section>
+    </main>
+
+    <footer>
+        <p>© 2026 Jay. All rights reserved.</p>
+    </footer>
+
+</body>
+</html>
